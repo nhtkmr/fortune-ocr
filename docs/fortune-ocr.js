@@ -1,6 +1,6 @@
-// 櫻坂46 シリアル OCR 入力ツール
+// fortunemeets シリアル OCR 入力ツール
 // ブックマークレットから https://ticket.fortunemeets.app/... の登録ページに注入して使う。
-// 撮影した応募券の写真から13桁シリアルを読み取り、確認・修正後に入力枠へ反映する（登録ボタンは押さない）。
+// 撮影した応募券の写真から英数字シリアルを読み取り、確認・修正後に入力枠へ反映する（登録ボタンは押さない）。
 (function () {
   'use strict'
 
@@ -9,13 +9,27 @@
     return
   }
 
-  var SERIAL_LENGTH = 13
+  // シリアル桁数はイベントごとに違う（櫻坂46 16th: 13桁, 日向坂46 16th: 14桁）ため、
+  // 登録ページの入力枠の maxLength から取得する。取得できない間はこの範囲で候補を拾う。
+  var MIN_LENGTH = 10
+  var MAX_LENGTH = 16
   var MAX_INPUTS = 10
-  var LOW_CONFIDENCE = 0.9
+  // 正常に読めたものは 0.98 前後、反射などで1文字誤読したものは 0.95 前後だった
+  var LOW_CONFIDENCE = 0.97
   var STORAGE_KEY = 'fortuneOcrSerials'
   var scriptSrc = (document.currentScript && document.currentScript.src) || ''
   var BASE_URL = scriptSrc.replace(/[^/]*$/, '')
-  var SERIAL_RE = new RegExp('^[A-Z0-9]{' + SERIAL_LENGTH + '}$')
+
+  function serialLength() {
+    var input = document.querySelector('input[id^="inputSerial"]')
+    return input && input.maxLength > 0 ? input.maxLength : null
+  }
+
+  function isValidSerial(v) {
+    if (!/^[A-Z0-9]+$/.test(v)) return false
+    var len = serialLength()
+    return len ? v.length === len : v.length >= MIN_LENGTH && v.length <= MAX_LENGTH
+  }
 
   // { value, conf, filled }
   var serials = loadSerials()
@@ -116,7 +130,7 @@
     listEl.innerHTML = ''
     serials.forEach(function (s, i) {
       var li = document.createElement('li')
-      var bad = !SERIAL_RE.test(s.value)
+      var bad = !isValidSerial(s.value)
       li.className = s.filled ? 'fo-filled' : bad ? 'fo-bad' : s.conf != null && s.conf < LOW_CONFIDENCE ? 'fo-low' : ''
       var no = document.createElement('span')
       no.className = 'fo-no'
@@ -126,7 +140,7 @@
       input.autocapitalize = 'characters'
       input.autocomplete = 'off'
       input.spellcheck = false
-      input.maxLength = SERIAL_LENGTH + 4
+      input.maxLength = MAX_LENGTH + 4
       input.addEventListener('change', function () {
         s.value = normalize(input.value)
         s.conf = null
@@ -192,7 +206,7 @@
     var found = []
     texts.forEach(function (t) {
       var v = t.text.replace(/\s+/g, '')
-      if (SERIAL_RE.test(v)) found.push({ value: v, conf: t.mean })
+      if (isValidSerial(v)) found.push({ value: v, conf: t.mean })
     })
     return found
   }
@@ -281,9 +295,9 @@
     })
     if (!targets.length) return setStatus('反映するシリアルがありません。', true)
     var invalid = targets.filter(function (s) {
-      return !SERIAL_RE.test(s.value)
+      return !isValidSerial(s.value)
     })
-    if (invalid.length) return setStatus('13桁でないシリアルがあります（赤枠）。修正または削除してください。', true)
+    if (invalid.length) return setStatus('桁数が' + (serialLength() || '正しく') + 'でないシリアルがあります（赤枠）。修正または削除してください。', true)
     if (!pageInputs().length) return setStatus('入力枠が見つかりません。ログインして「シリアルナンバー登録」ページを開いてから実行してください。', true)
 
     targets = targets.slice(0, MAX_INPUTS)

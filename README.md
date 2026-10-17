@@ -1,7 +1,7 @@
 # fortune-ocr
 
-櫻坂46 16th シングル応募券の13桁シリアルを写真から読み取り、
-https://ticket.fortunemeets.app/sakurazaka46/16th#/registration の入力枠に入れるブックマークレット。
+fortunemeets（櫻坂46・日向坂46など）の応募券シリアルを写真から読み取り、
+登録ページ（例 https://ticket.fortunemeets.app/sakurazaka46/16th#/registration）の入力枠に入れるブックマークレット。
 
 - OCR: PaddleOCR PP-OCRv4 (`@gutenye/ocr-browser` + onnxruntime-web)。端末内で処理し外部送信なし
 - `docs/` を GitHub Pages で公開。使い方は `docs/index.html`

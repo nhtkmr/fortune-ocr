@@ -14,7 +14,7 @@
   <button id="run" onclick="var s=document.createElement('script');s.src='../docs/fortune-ocr.js?'+Date.now();document.body.appendChild(s)">ツール起動（ブックマークレット相当）</button>
   <script>
     var h = React.createElement
-    var serialLength = 13
+    var serialLength = Number(new URLSearchParams(location.search).get('len')) || 13
     function init(n) {
       return Array.from({ length: n }, function (_, i) { return { name: 'inputSerial' + (i + 1), value: '', error: false } })
     }
