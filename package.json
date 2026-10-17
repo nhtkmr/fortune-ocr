@@ -1,0 +1,16 @@
+{
+  "name": "fortune-ocr",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@gutenye/ocr-browser": "1.4.9",
+    "@gutenye/ocr-models": "1.4.2",
+    "@techstark/opencv-js": "4.9.0-release.3",
+    "esbuild": "0.24.2",
+    "onnxruntime-web": "1.30.0"
+  }
+}

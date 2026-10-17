@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>シリアル読み取りツール</title>
+  <style>
+    :root { --accent: #c94f78; --bg: #fff; --fg: #222; --muted: #666; --card: #fdf3f6; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --muted: #aaa; --card: #2a1f23; } }
+    body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; }
+    main { max-width: 640px; margin: 0 auto; }
+    h1 { font-size: 22px; margin: 8px 0 4px; }
+    h2 { font-size: 18px; margin: 28px 0 8px; border-left: 4px solid var(--accent); padding-left: 8px; }
+    p.lead { color: var(--muted); margin-top: 0; }
+    .code { background: var(--card); border-radius: 8px; padding: 12px; font: 13px/1.5 Menlo, Consolas, monospace; word-break: break-all; }
+    button { appearance: none; border: none; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; border-radius: 8px; padding: 12px; width: 100%; margin-top: 8px; }
+    ol { padding-left: 1.4em; }
+    li { margin-bottom: 6px; }
+    .warn { background: var(--card); border-radius: 8px; padding: 12px; font-size: 14px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>シリアル読み取りツール</h1>
+  <p class="lead">応募券を並べて撮影すると、13桁のシリアルナンバーを読み取って登録ページの入力枠に自動で入れるブックマークレットです。</p>
+
+  <h2>1. ブックマークレットをコピー</h2>
+  <div class="code" id="bm"></div>
+  <button id="copy" type="button">コピーする</button>
+
+  <h2>2. ブックマークに登録</h2>
+  <h3>iPhone（Safari）</h3>
+  <ol>
+    <li>このページを開いたまま、共有ボタン →「ブックマークを追加」で保存（名前は「シリアル読取」など）</li>
+    <li>ブックマーク一覧 →「編集」→ 今保存したブックマークをタップ</li>
+    <li>URL欄の中身を全部消して、コピーしたコードを貼り付けて保存</li>
+  </ol>
+  <h3>Android（Chrome）</h3>
+  <ol>
+    <li>このページで︙ →☆ でブックマークを追加</li>
+    <li>︙ →「ブックマーク」→ 追加したものを長押し →「編集」</li>
+    <li>名前を「シリアル読取」に、URLをコピーしたコードに置き換えて保存</li>
+  </ol>
+
+  <h2>3. 使い方</h2>
+  <ol>
+    <li>応募サイトにログインして「シリアルナンバー登録」ページを開く</li>
+    <li>ブックマークレットを実行<br>
+      iPhone: ブックマーク一覧から「シリアル読取」をタップ<br>
+      Android: アドレスバーに「シリアル読取」と入力し、候補に出るブックマークをタップ</li>
+    <li>画面下にパネルが出たら「📷 撮影」。応募券をずらして重ね、シリアル部分が全部写るように撮る（1枚に複数枚OK）</li>
+    <li>読み取り結果を券と見比べて確認。間違いはその場で修正（黄色＝要確認、赤＝桁数不足）</li>
+    <li>「入力枠へ反映」→ ページ側の入力内容を確認して「シリアルナンバー登録」を押す</li>
+    <li>11件以上ある場合は、登録完了後にもう一度登録ページを開いて「入力枠へ反映」で残りを入れる</li>
+  </ol>
+
+  <h2>注意</h2>
+  <div class="warn">
+    <ul>
+      <li>初回はOCRデータ（約40MB）をダウンロードします。Wi-Fi環境推奨。2回目以降はキャッシュされます。</li>
+      <li>読み取りはすべてスマホ内で行われ、写真やシリアルが外部に送信されることはありません。</li>
+      <li>登録ボタンは自動では押しません。登録失敗を繰り返すとアカウントが一時停止されるため、必ず目視で確認してください。</li>
+    </ul>
+  </div>
+</main>
+<script>
+  var src = location.href.replace(/[^/]*([?#].*)?$/, '') + 'fortune-ocr.js'
+  var code = "javascript:(function(){var s=document.createElement('script');s.src='" + src + "?'+Date.now();document.body.appendChild(s)})()"
+  document.getElementById('bm').textContent = code
+  document.getElementById('copy').addEventListener('click', function () {
+    var btn = this
+    function done() { btn.textContent = 'コピーしました' }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(code).then(done, fallback)
+    } else {
+      fallback()
+    }
+    function fallback() {
+      var ta = document.createElement('textarea')
+      ta.value = code
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      ta.remove()
+      done()
+    }
+  })
+</script>
+</body>
+</html>

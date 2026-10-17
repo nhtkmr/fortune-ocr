@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Registration Mock</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+</head>
+<body>
+  <!-- ticket.fortunemeets.app の RegistrationEntry.tsx と同じ構造のモック -->
+  <div id="app"></div>
+  <pre id="submitted"></pre>
+  <button id="run" onclick="var s=document.createElement('script');s.src='../docs/fortune-ocr.js?'+Date.now();document.body.appendChild(s)">ツール起動（ブックマークレット相当）</button>
+  <script>
+    var h = React.createElement
+    var serialLength = 13
+    function init(n) {
+      return Array.from({ length: n }, function (_, i) { return { name: 'inputSerial' + (i + 1), value: '', error: false } })
+    }
+    function Entry() {
+      var st = React.useState(init(3)), inputEl = st[0], setInputEl = st[1]
+      var ab = React.useState(true), addBtnFlg = ab[0], setAddBtnFlg = ab[1]
+      var ar = React.useState(false), active = ar[0], setActive = ar[1]
+      function changeInput(e) {
+        var index = Number(e.target.name)
+        var value = e.target.value.replace(/\s+/g, '')
+        var n = inputEl.slice()
+        n[index].value = value
+        n[index].error = !(value.length === 0 || (/^[a-zA-Z0-9]*$/.test(value) && value.length === serialLength))
+        setActive(n.some(function (x) { return x.value.length > 0 }) && n.every(function (x) { return !x.error }))
+        setInputEl(n)
+      }
+      function addInput(e) {
+        e.preventDefault()
+        var n = inputEl.slice()
+        n.push({ name: 'inputSerial' + (inputEl.length + 1), value: '', error: false })
+        setInputEl(n)
+        if (inputEl.length === 9) setAddBtnFlg(false)
+      }
+      function register(e) {
+        e.preventDefault()
+        document.getElementById('submitted').textContent = JSON.stringify(inputEl.filter(function (x) { return x.value }).map(function (x) { return x.value }))
+      }
+      return h('form', null,
+        inputEl.map(function (input, index) {
+          return h('div', { key: index, className: input.error ? 'error' : '' },
+            h('label', { htmlFor: 'inputSerial' + (index + 1) }, index + 1 + '.'),
+            h('input', { name: '' + index, type: 'text', maxLength: serialLength, id: 'inputSerial' + (index + 1), value: input.value, onChange: changeInput }))
+        }),
+        addBtnFlg && h('button', { onClick: addInput }, '＋ 入力枠を追加'),
+        h('button', { id: 'register', disabled: !active, onClick: register }, 'シリアルナンバー登録'))
+    }
+    ReactDOM.render(h(Entry), document.getElementById('app'))
+  </script>
+</body>
+</html>
