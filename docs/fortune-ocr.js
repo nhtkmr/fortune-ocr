@@ -5,7 +5,7 @@
   'use strict'
 
   // 不具合報告時にスマホが最新版を読み込んでいるか確認するため、パネルにも表示する
-  var VERSION = '2026-10-18c'
+  var VERSION = '2026-10-18d'
 
   // 同じタブで再実行されたとき、同じ版なら既存パネルを出すだけ。古い版なら差し替える
   if (window.__fortuneOcr) {
@@ -17,7 +17,7 @@
     if (oldPanel) oldPanel.remove()
   }
 
-  // シリアル桁数はイベントごとに違う（櫻坂46 16th: 13桁, 日向坂46 16th: 14桁）ため、
+  // シリアル桁数はイベントごとに違う（13桁・14桁など）ため、
   // 登録ページの入力枠の maxLength から取得する。取得できない間はこの範囲で候補を拾う。
   var MIN_LENGTH = 10
   var MAX_LENGTH = 16
@@ -250,7 +250,7 @@
   }
 
   // 桁数がページと合わない候補も捨てずに返す（リスト上で赤表示し、理由をステータスに出す）。
-  // 例: 櫻坂46 (13桁) の登録ページで日向坂46 (14桁) の券を読んだ場合
+  // 例: 13桁の登録ページで14桁の券を読んだ場合
   function extractSerials(texts) {
     var found = []
     texts.forEach(function (t) {
@@ -320,9 +320,7 @@
         if (!added && !dup) msg = 'シリアルが見つかりませんでした。明るい場所で、文字が大きく写るように撮り直してください。'
         var len = serialLength()
         if (wrongLength && len) {
-          msg +=
-            '\n赤の' + wrongLength + '件は' + len + '桁ではありません。このページのシリアルは' + len + '桁です。' +
-            '別のイベントの券ではないか確認してください（櫻坂46 16th は13桁、日向坂46 16th は14桁）。'
+          msg += '\n赤の' + wrongLength + '件は桁数がこのページ（' + len + '桁）と違います。'
         }
         setStatus(msg, (!added && !dup) || wrongLength > 0)
       })
