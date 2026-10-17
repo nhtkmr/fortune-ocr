@@ -234,11 +234,13 @@
     })
   }
 
+  // 桁数がページと合わない候補も捨てずに返す（リスト上で赤表示し、理由をステータスに出す）。
+  // 例: 櫻坂46 (13桁) の登録ページで日向坂46 (14桁) の券を読んだ場合
   function extractSerials(texts) {
     var found = []
     texts.forEach(function (t) {
       var v = t.text.replace(/\s+/g, '')
-      if (isValidSerial(v)) found.push({ value: v, conf: t.mean })
+      if (/^[A-Z0-9]+$/.test(v) && v.length >= MIN_LENGTH && v.length <= MAX_LENGTH) found.push({ value: v, conf: t.mean })
     })
     return found
   }
@@ -250,6 +252,7 @@
     setStatus('OCRエンジンを準備中…（初回は約40MBのダウンロードがあります）')
     var added = 0
     var dup = 0
+    var wrongLength = 0
     loadEngine()
       .then(function (engine) {
         return files.reduce(function (p, file, idx) {
@@ -273,6 +276,7 @@
                     } else {
                       serials.push({ value: f.value, conf: f.conf, filled: false })
                       added++
+                      if (!isValidSerial(f.value)) wrongLength++
                     }
                   })
                   saveSerials()
@@ -290,7 +294,13 @@
         var msg = added + '件読み取りました。'
         if (dup) msg += '（重複' + dup + '件は除外）'
         if (!added && !dup) msg = 'シリアルが見つかりませんでした。明るい場所で、文字が大きく写るように撮り直してください。'
-        setStatus(msg, !added && !dup)
+        var len = serialLength()
+        if (wrongLength && len) {
+          msg +=
+            '\n赤の' + wrongLength + '件は' + len + '桁ではありません。このページのシリアルは' + len + '桁です。' +
+            '別のイベントの券ではないか確認してください（櫻坂46 16th は13桁、日向坂46 16th は14桁）。'
+        }
+        setStatus(msg, (!added && !dup) || wrongLength > 0)
       })
       .catch(function (e) {
         setStatus('エラー: ' + (e && e.message ? e.message : e), true)
