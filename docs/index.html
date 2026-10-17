@@ -33,12 +33,18 @@
     .caption .no { display: inline-block; min-width: 1.6em; height: 1.6em; line-height: 1.6em; border-radius: 50%; background: var(--accent); color: #fff; font-size: 13px; margin-right: 6px; }
     .controls { display: flex; align-items: center; gap: 10px; }
     .controls button { appearance: none; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 999px; width: 40px; height: 40px; font-size: 15px; }
-    .dots { display: flex; gap: 6px; }
-    .dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); cursor: pointer; }
-    .dots span.on { background: var(--accent); }
+    /* 手順番号（上部）: 済み=薄い色、現在=濃い色で大きく */
+    .steps { display: flex; align-items: center; gap: 4px; margin-bottom: 10px; }
+    .steps button { appearance: none; width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--line); background: var(--bg); color: var(--muted); font-size: 13px; font-weight: 700; padding: 0; transition: .25s; }
+    .steps button.done { border-color: var(--accent); color: var(--accent); }
+    .steps button.on { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.18); }
+    .steps i { width: 10px; height: 2px; background: var(--line); }
+    .steps i.done { background: var(--accent); }
+    .step-label { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    .step-label b { color: var(--accent); font-size: 17px; }
 
     /* 指（タップ位置） */
-    .finger { position: absolute; left: 50%; top: 110%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(201,79,120,.35); border: 2px solid rgba(201,79,120,.9); pointer-events: none; transition: left .6s ease, top .6s ease, opacity .3s; z-index: 50; opacity: 0; }
+    .finger { position: absolute; left: 50%; top: 110%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(201,79,120,.35); border: 2px solid rgba(201,79,120,.9); pointer-events: none; transition: left .75s ease, top .75s ease, opacity .3s; z-index: 50; opacity: 0; }
     .finger.show { opacity: 1; }
     .finger.tap { animation: tap .45s ease; }
     .finger.hold { animation: hold 1s ease; }
@@ -204,19 +210,23 @@
   //       { type: [セレクタ, 文字列] } { set: [セレクタ, 文字列] } { add: [セレクタ, クラス] }
   var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches
   var BM_SHORT = "javascript:(function(){var s=docu…"
+  // 場面内の各動作の間隔に掛ける倍率（大きいほどゆっくり）
+  var SPEED = 1.5
 
   function Player(root, scenes) {
     this.root = root
     root.innerHTML =
+      '<div class="step-label"></div>' +
+      '<div class="steps"></div>' +
       '<div class="phone"><div class="screen"></div></div>' +
       '<div class="caption"></div>' +
       '<div class="controls"><button type="button" data-act="prev" aria-label="前へ">◀</button>' +
-      '<div class="dots"></div>' +
       '<button type="button" data-act="toggle" aria-label="再生/一時停止">❚❚</button>' +
       '<button type="button" data-act="next" aria-label="次へ">▶</button></div>'
     this.screen = root.querySelector('.screen')
     this.caption = root.querySelector('.caption')
-    this.dots = root.querySelector('.dots')
+    this.stepsEl = root.querySelector('.steps')
+    this.stepLabel = root.querySelector('.step-label')
     this.toggleBtn = root.querySelector('[data-act="toggle"]')
     this.timers = []
     this.playing = !reduceMotion
@@ -233,11 +243,15 @@
   Player.prototype.load = function (scenes) {
     this.scenes = scenes
     var self = this
-    this.dots.innerHTML = ''
+    this.stepsEl.innerHTML = ''
     scenes.forEach(function (_, i) {
-      var d = document.createElement('span')
-      d.onclick = function () { self.go(i) }
-      self.dots.appendChild(d)
+      if (i) self.stepsEl.appendChild(document.createElement('i'))
+      var b = document.createElement('button')
+      b.type = 'button'
+      b.textContent = i + 1
+      b.setAttribute('aria-label', '手順' + (i + 1))
+      b.onclick = function () { self.go(i) }
+      self.stepsEl.appendChild(b)
     })
     this.go(0)
   }
@@ -258,23 +272,30 @@
     var scene = this.scenes[this.index]
     this.toggleBtn.textContent = this.playing ? '❚❚' : '▶︎'
     this.toggleBtn.setAttribute('aria-label', this.playing ? '一時停止' : '再生')
-    Array.prototype.forEach.call(this.dots.children, function (d, k) { d.className = k === this.index ? 'on' : '' }, this)
+    var idx = this.index
+    Array.prototype.forEach.call(this.stepsEl.querySelectorAll('button'), function (b, k) {
+      b.className = k === idx ? 'on' : k < idx ? 'done' : ''
+    })
+    Array.prototype.forEach.call(this.stepsEl.querySelectorAll('i'), function (line, k) {
+      line.className = k < idx ? 'done' : ''
+    })
+    this.stepLabel.innerHTML = '手順 <b>' + (idx + 1) + '</b> / ' + n
     this.caption.innerHTML = '<span class="no">' + (this.index + 1) + '</span>' + scene.cap
     this.screen.innerHTML = scene.html + '<div class="finger"></div>'
     this.finger = this.screen.querySelector('.finger')
 
     var self = this
-    var t = 500
+    var t = 700
     if (!this.playing) {
       // 一時停止中・動きを減らす設定のときは、場面の最終状態を静止画で見せる
       scene.steps.forEach(function (st) { self.run(st[1], true) })
       return
     }
     scene.steps.forEach(function (st) {
-      t += st[0]
+      t += st[0] * SPEED
       self.later(t, function () { self.run(st[1], false) })
     })
-    this.later(t + 1600, function () { self.go(self.index + 1) })
+    this.later(t + 2600, function () { self.go(self.index + 1) })
   }
 
   Player.prototype.$ = function (sel) {
@@ -297,7 +318,7 @@
       if (instant) return
       var cls = a.tap ? 'tap' : 'hold'
       this.moveFinger(a.tap || a.hold)
-      this.later(650, function () {
+      this.later(700, function () {
         self.finger.classList.remove('tap', 'hold')
         void self.finger.offsetWidth
         self.finger.classList.add(cls)
@@ -317,7 +338,7 @@
       el.textContent = ''
       for (var k = 1; k <= text.length; k++) {
         (function (k) {
-          self.later(k * 70, function () { el.textContent = text.slice(0, k) })
+          self.later(k * 110, function () { el.textContent = text.slice(0, k) })
         })(k)
       }
     }
