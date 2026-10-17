@@ -14,6 +14,8 @@
   var MIN_LENGTH = 10
   var MAX_LENGTH = 16
   var MAX_INPUTS = 10
+  // 1600px だと取りこぼしが出た。2000px で全件読めることを確認済み
+  var MAX_IMAGE_SIDE = 2000
   // 正常に読めたものは 0.98 前後、反射などで1文字誤読したものは 0.95 前後だった
   var LOW_CONFIDENCE = 0.97
   var STORAGE_KEY = 'fortuneOcrSerials'
@@ -202,6 +204,36 @@
     return enginePromise
   }
 
+  // OCR ライブラリは画像をフル解像度のまま検出モデルに入れるため、スマホのカメラ写真
+  // (12MP〜) だとメモリ不足で落ちる。長辺 MAX_IMAGE_SIDE px に縮小した JPEG の URL を返す。
+  function downscale(file) {
+    return new Promise(function (resolve, reject) {
+      var srcUrl = URL.createObjectURL(file)
+      var img = new Image()
+      img.onload = function () {
+        URL.revokeObjectURL(srcUrl)
+        var scale = Math.min(1, MAX_IMAGE_SIDE / Math.max(img.naturalWidth, img.naturalHeight))
+        var canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.naturalWidth * scale)
+        canvas.height = Math.round(img.naturalHeight * scale)
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob(
+          function (blob) {
+            if (blob) resolve(URL.createObjectURL(blob))
+            else reject(new Error('画像の変換に失敗しました'))
+          },
+          'image/jpeg',
+          0.92,
+        )
+      }
+      img.onerror = function () {
+        URL.revokeObjectURL(srcUrl)
+        reject(new Error('画像を読み込めませんでした（HEIC形式などは非対応の場合があります）'))
+      }
+      img.src = srcUrl
+    })
+  }
+
   function extractSerials(texts) {
     var found = []
     texts.forEach(function (t) {
@@ -223,29 +255,34 @@
         return files.reduce(function (p, file, idx) {
           return p.then(function () {
             setStatus('読み取り中… (' + (idx + 1) + '/' + files.length + ')')
-            var url = URL.createObjectURL(file)
-            return engine.detect(BASE_URL, url).then(
-              function (texts) {
-                URL.revokeObjectURL(url)
-                extractSerials(texts).forEach(function (f) {
-                  var exists = serials.some(function (s) {
-                    return s.value === f.value
+            var url
+            return downscale(file)
+              .then(function (u) {
+                url = u
+                return engine.detect(BASE_URL, url)
+              })
+              .then(
+                function (texts) {
+                  URL.revokeObjectURL(url)
+                  extractSerials(texts).forEach(function (f) {
+                    var exists = serials.some(function (s) {
+                      return s.value === f.value
+                    })
+                    if (exists) {
+                      dup++
+                    } else {
+                      serials.push({ value: f.value, conf: f.conf, filled: false })
+                      added++
+                    }
                   })
-                  if (exists) {
-                    dup++
-                  } else {
-                    serials.push({ value: f.value, conf: f.conf, filled: false })
-                    added++
-                  }
-                })
-                saveSerials()
-                render()
-              },
-              function (e) {
-                URL.revokeObjectURL(url)
-                throw e
-              },
-            )
+                  saveSerials()
+                  render()
+                },
+                function (e) {
+                  if (url) URL.revokeObjectURL(url)
+                  throw e
+                },
+              )
           })
         }, Promise.resolve())
       })
