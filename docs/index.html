@@ -5,18 +5,118 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>シリアル読み取りツール</title>
   <style>
-    :root { --accent: #c94f78; --bg: #fff; --fg: #222; --muted: #666; --card: #fdf3f6; }
-    @media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --muted: #aaa; --card: #2a1f23; } }
+    :root { --accent: #c94f78; --bg: #fff; --fg: #222; --muted: #666; --card: #fdf3f6; --line: #e5d5db; }
+    @media (prefers-color-scheme: dark) { :root { --bg: #161616; --fg: #eee; --muted: #aaa; --card: #2a1f23; --line: #4a3a40; } }
     body { margin: 0; padding: 16px; background: var(--bg); color: var(--fg); font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; }
     main { max-width: 640px; margin: 0 auto; }
     h1 { font-size: 22px; margin: 8px 0 4px; }
-    h2 { font-size: 18px; margin: 28px 0 8px; border-left: 4px solid var(--accent); padding-left: 8px; }
+    h2 { font-size: 18px; margin: 32px 0 8px; border-left: 4px solid var(--accent); padding-left: 8px; }
     p.lead { color: var(--muted); margin-top: 0; }
     .code { background: var(--card); border-radius: 8px; padding: 12px; font: 13px/1.5 Menlo, Consolas, monospace; word-break: break-all; }
-    button { appearance: none; border: none; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; border-radius: 8px; padding: 12px; width: 100%; margin-top: 8px; }
+    .btn-main { appearance: none; border: none; background: var(--accent); color: #fff; font-size: 16px; font-weight: 600; border-radius: 8px; padding: 12px; width: 100%; margin-top: 8px; }
     ol { padding-left: 1.4em; }
     li { margin-bottom: 6px; }
     .warn { background: var(--card); border-radius: 8px; padding: 12px; font-size: 14px; }
+    details.text { margin-top: 12px; font-size: 15px; }
+    details.text summary { color: var(--accent); cursor: pointer; }
+
+    /* ---------- タブ ---------- */
+    .tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+    .tabs button { flex: 1; appearance: none; border: 1px solid var(--accent); background: transparent; color: var(--accent); border-radius: 999px; padding: 6px; font-size: 14px; font-weight: 600; }
+    .tabs button[aria-selected="true"] { background: var(--accent); color: #fff; }
+
+    /* ---------- プレイヤー ---------- */
+    .player { display: flex; flex-direction: column; align-items: center; }
+    .phone { position: relative; width: 250px; height: 500px; border-radius: 34px; background: #1d1d1f; padding: 12px 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); }
+    .screen { position: relative; width: 100%; height: 100%; border-radius: 24px; overflow: hidden; background: #fff; color: #222; font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Hiragino Sans", sans-serif; }
+    .caption { min-height: 3.2em; margin: 14px 0 6px; text-align: center; font-weight: 600; font-size: 15px; max-width: 320px; }
+    .caption .no { display: inline-block; min-width: 1.6em; height: 1.6em; line-height: 1.6em; border-radius: 50%; background: var(--accent); color: #fff; font-size: 13px; margin-right: 6px; }
+    .controls { display: flex; align-items: center; gap: 10px; }
+    .controls button { appearance: none; border: 1px solid var(--line); background: var(--bg); color: var(--fg); border-radius: 999px; width: 40px; height: 40px; font-size: 15px; }
+    .dots { display: flex; gap: 6px; }
+    .dots span { width: 8px; height: 8px; border-radius: 50%; background: var(--line); cursor: pointer; }
+    .dots span.on { background: var(--accent); }
+
+    /* 指（タップ位置） */
+    .finger { position: absolute; left: 50%; top: 110%; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: rgba(201,79,120,.35); border: 2px solid rgba(201,79,120,.9); pointer-events: none; transition: left .6s ease, top .6s ease, opacity .3s; z-index: 50; opacity: 0; }
+    .finger.show { opacity: 1; }
+    .finger.tap { animation: tap .45s ease; }
+    .finger.hold { animation: hold 1s ease; }
+    @keyframes tap { 0% { transform: scale(1); } 40% { transform: scale(.7); background: rgba(201,79,120,.7); } 100% { transform: scale(1); } }
+    @keyframes hold { 0% { transform: scale(1); } 30%, 80% { transform: scale(.7); background: rgba(201,79,120,.8); box-shadow: 0 0 0 8px rgba(201,79,120,.25); } 100% { transform: scale(1); } }
+
+    /* ---------- 画面内パーツ（スマホの中は常にライト表示） ---------- */
+    .s-status { height: 18px; font-size: 10px; display: flex; justify-content: space-between; padding: 2px 14px 0; color: #333; }
+    .s-bar { display: flex; align-items: center; gap: 6px; padding: 4px 8px 6px; border-bottom: 1px solid #ddd; background: #f6f6f6; }
+    .s-url { flex: 1; background: #e9e9ec; border-radius: 14px; padding: 4px 10px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #444; }
+    .s-icon { width: 22px; text-align: center; font-size: 15px; color: #444; }
+    .s-page { padding: 10px 12px; }
+    .s-h { font-weight: 700; font-size: 14px; text-align: center; margin: 4px 0 10px; }
+    .s-p { color: #666; font-size: 11px; margin: 0 0 8px; }
+    .s-input { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+    .s-input b { width: 16px; text-align: right; font-weight: 400; color: #888; font-size: 11px; }
+    .s-input span { flex: 1; height: 22px; border: 1px solid #ccc; border-radius: 4px; font: 600 11px/20px Menlo, Consolas, monospace; padding: 0 5px; letter-spacing: .03em; transition: background .4s; overflow: hidden; white-space: nowrap; }
+    .s-input span.filled { background: #eefaf4; border-color: #62cdae; }
+    .s-btn { display: block; text-align: center; border-radius: 16px; padding: 6px; margin: 6px 0; font-weight: 700; font-size: 12px; }
+    .s-btn.green { background: #62cdae; color: #fff; }
+    .s-btn.gray { background: #ccc; color: #fff; transition: background .4s; }
+    .s-btn.gray.green { background: #62cdae; }
+    .s-btn.ol { border: 1px solid #62cdae; color: #62cdae; }
+    .s-menu { position: absolute; right: 6px; top: 46px; width: 160px; background: #fff; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.25); padding: 4px 0; z-index: 10; opacity: 0; transform: scale(.9); transform-origin: top right; transition: .25s; }
+    .s-menu.open { opacity: 1; transform: none; }
+    .s-menu .row { padding: 7px 12px; font-size: 12px; }
+    .s-menu .icons { display: flex; justify-content: space-around; padding: 4px 8px 6px; border-bottom: 1px solid #eee; font-size: 15px; }
+    .s-sheet { position: absolute; left: 0; right: 0; bottom: 0; background: #f2f2f7; border-radius: 14px 14px 0 0; padding: 10px; z-index: 10; transform: translateY(100%); transition: transform .35s ease; }
+    .s-sheet.open { transform: none; }
+    .s-sheet .row { background: #fff; padding: 8px 10px; border-bottom: 1px solid #eee; font-size: 12px; }
+    .s-sheet .row:first-child { border-radius: 8px 8px 0 0; }
+    .s-sheet .row:last-child { border-radius: 0 0 8px 8px; border-bottom: none; }
+    .s-title { font-weight: 700; font-size: 14px; padding: 8px 12px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+    .s-title .act { color: #1a73e8; font-weight: 600; font-size: 12px; }
+    .s-list .row { padding: 10px 12px; border-bottom: 1px solid #eee; display: flex; gap: 8px; align-items: center; transition: background .3s; }
+    .s-list .row.pressed { background: #fde7ef; }
+    .s-list .fav { width: 18px; height: 18px; border-radius: 4px; background: #f19db5; flex: none; }
+    .s-field { margin: 10px 12px; }
+    .s-field label { display: block; font-size: 10px; color: #1a73e8; }
+    .s-field div { border-bottom: 2px solid #1a73e8; padding: 4px 0; font-size: 12px; min-height: 1.6em; word-break: break-all; }
+    .s-field.ios label { color: #888; }
+    .s-field.ios div { border: 1px solid #ddd; border-radius: 6px; padding: 5px 8px; background: #fff; }
+    .s-suggest { position: absolute; left: 0; right: 0; top: 46px; background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,.15); z-index: 10; opacity: 0; transition: .25s; }
+    .s-suggest.open { opacity: 1; }
+    .s-suggest .row { padding: 9px 12px; display: flex; gap: 8px; align-items: center; border-bottom: 1px solid #eee; }
+    .s-pop { position: absolute; z-index: 12; background: #fff; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.25); opacity: 0; transition: .2s; }
+    .s-pop.open { opacity: 1; }
+    .s-pop .row { padding: 8px 14px; font-size: 12px; }
+    .s-toast { position: absolute; left: 50%; bottom: 20px; transform: translateX(-50%); background: #333; color: #fff; padding: 5px 12px; border-radius: 14px; font-size: 11px; white-space: nowrap; opacity: 0; transition: .3s; z-index: 20; }
+    .s-toast.open { opacity: 1; }
+    /* ツールのパネル */
+    .s-panel { position: absolute; left: 0; right: 0; bottom: 0; background: #fff; border-top: 2px solid #f19db5; box-shadow: 0 -3px 10px rgba(0,0,0,.15); transform: translateY(100%); transition: transform .4s ease; z-index: 15; }
+    .s-panel.open { transform: none; }
+    .s-panel .hd { background: #fdeef3; padding: 5px 8px; font-weight: 700; font-size: 11px; }
+    .s-panel .bd { padding: 6px 8px; }
+    .s-panel .two { display: flex; gap: 5px; margin-bottom: 5px; }
+    .s-panel .pb { flex: 1; text-align: center; border: 1px solid #c94f78; color: #c94f78; border-radius: 6px; padding: 4px; font-weight: 600; font-size: 11px; }
+    .s-panel .pb.pri { background: #c94f78; color: #fff; }
+    .s-panel .st { font-size: 10px; color: #555; min-height: 1.4em; }
+    .s-panel .it { display: flex; gap: 4px; align-items: center; margin-bottom: 3px; opacity: 0; transform: translateY(4px); transition: .3s; }
+    .s-panel .it.show { opacity: 1; transform: none; }
+    .s-panel .it span { flex: 1; border: 1px solid #bbb; border-radius: 4px; font: 600 10.5px/18px Menlo, Consolas, monospace; padding: 0 4px; }
+    .s-panel .it.low span { border-color: #e0a000; background: #fffbe6; }
+    .s-panel .it em { font-style: normal; font-size: 9px; color: #888; width: 3em; }
+    /* カメラ */
+    .s-cam { position: absolute; inset: 0; background: #111; z-index: 30; display: flex; flex-direction: column; opacity: 0; pointer-events: none; transition: opacity .3s; }
+    .s-cam.open { opacity: 1; }
+    .s-cam .view { flex: 1; margin: 30px 14px 10px; background: #c8a675; border-radius: 4px; position: relative; overflow: hidden; }
+    .s-cam .card { position: absolute; left: 12%; right: 12%; height: 21%; background: #fafafa; border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,.3); font: 700 11px Menlo, Consolas, monospace; display: flex; align-items: center; justify-content: center; letter-spacing: .08em; }
+    .s-cam .shutter { width: 46px; height: 46px; border-radius: 50%; border: 4px solid #fff; background: #ddd; margin: 4px auto 16px; }
+    .s-cam .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+    .s-cam .flash.go { animation: flash .4s ease; }
+    @keyframes flash { 0% { opacity: .9; } 100% { opacity: 0; } }
+
+    @media (prefers-reduced-motion: reduce) {
+      .finger, .s-menu, .s-sheet, .s-panel, .s-cam, .s-suggest, .s-pop, .s-toast, .s-panel .it { transition: none; }
+      .finger.tap, .finger.hold, .s-cam .flash.go { animation: none; }
+    }
   </style>
 </head>
 <body>
@@ -26,33 +126,45 @@
 
   <h2>1. ブックマークレットをコピー</h2>
   <div class="code" id="bm"></div>
-  <button id="copy" type="button">コピーする</button>
+  <button class="btn-main" id="copy" type="button">コピーする</button>
 
   <h2>2. ブックマークに登録</h2>
-  <h3>iPhone（Safari）</h3>
-  <ol>
-    <li>このページを開いたまま、共有ボタン →「ブックマークを追加」で保存（名前は「シリアル読取」など）</li>
-    <li>ブックマーク一覧 →「編集」→ 今保存したブックマークをタップ</li>
-    <li>URL欄の中身を全部消して、コピーしたコードを貼り付けて保存</li>
-  </ol>
-  <h3>Android（Chrome）</h3>
-  <ol>
-    <li>このページで︙ →☆ でブックマークを追加</li>
-    <li>︙ →「ブックマーク」→ 追加したものを長押し →「編集」</li>
-    <li>名前を「シリアル読取」に、URLをコピーしたコードに置き換えて保存</li>
-  </ol>
+  <div class="tabs" role="tablist">
+    <button type="button" role="tab" data-os="android" aria-selected="true">Android（Chrome）</button>
+    <button type="button" role="tab" data-os="ios" aria-selected="false">iPhone（Safari）</button>
+  </div>
+  <div class="player" id="setup-player"></div>
+  <details class="text">
+    <summary>文字で読む</summary>
+    <h3>Android（Chrome）</h3>
+    <ol>
+      <li>このページで︙ →☆ でブックマークを追加</li>
+      <li>︙ →「ブックマーク」→ 追加したものを長押し →「編集」</li>
+      <li>名前を「シリアル読取」に、URLをコピーしたコードに置き換えて保存</li>
+    </ol>
+    <h3>iPhone（Safari）</h3>
+    <ol>
+      <li>このページを開いたまま、共有ボタン →「ブックマークを追加」で保存（名前は「シリアル読取」など）</li>
+      <li>ブックマーク一覧 →「編集」→ 今保存したブックマークをタップ</li>
+      <li>URL欄の中身を全部消して、コピーしたコードを貼り付けて保存</li>
+    </ol>
+  </details>
 
   <h2>3. 使い方</h2>
-  <ol>
-    <li>応募サイトにログインして「シリアルナンバー登録」ページを開く</li>
-    <li>ブックマークレットを実行<br>
-      iPhone: ブックマーク一覧から「シリアル読取」をタップ<br>
-      Android: アドレスバーに「シリアル読取」と入力し、候補に出るブックマークをタップ</li>
-    <li>画面下にパネルが出たら「📷 撮影」。応募券をずらして重ね、シリアル部分が全部写るように撮る（1枚に複数枚OK）</li>
-    <li>読み取り結果を券と見比べて確認。間違いはその場で修正（黄色＝要確認、赤＝桁数が合わない）</li>
-    <li>「入力枠へ反映」→ ページ側の入力内容を確認して「シリアルナンバー登録」を押す</li>
-    <li>11件以上ある場合は、登録完了後にもう一度登録ページを開いて「入力枠へ反映」で残りを入れる</li>
-  </ol>
+  <div class="player" id="usage-player"></div>
+  <details class="text">
+    <summary>文字で読む</summary>
+    <ol>
+      <li>応募サイトにログインして「シリアルナンバー登録」ページを開く</li>
+      <li>ブックマークレットを実行<br>
+        Android: アドレスバーに「シリアル読取」と入力し、候補に出るブックマークをタップ<br>
+        iPhone: ブックマーク一覧から「シリアル読取」をタップ</li>
+      <li>画面下にパネルが出たら「📷 撮影」。応募券をずらして重ね、シリアル部分が全部写るように撮る（1枚に複数枚OK）</li>
+      <li>読み取り結果を券と見比べて確認。間違いはその場で修正（黄色＝要確認、赤＝桁数が合わない）</li>
+      <li>「入力枠へ反映」→ ページ側の入力内容を確認して「シリアルナンバー登録」を押す</li>
+      <li>11件以上ある場合は、登録完了後にもう一度登録ページを開いて「入力枠へ反映」で残りを入れる</li>
+    </ol>
+  </details>
 
   <h2>注意</h2>
   <div class="warn">
@@ -84,6 +196,281 @@
       ta.remove()
       done()
     }
+  })
+
+  // ---------- アニメーションプレイヤー ----------
+  // scene: { cap: 説明, html: 画面の中身, steps: [[待ちms, 動作], ...] }
+  // 動作: { tap: セレクタ } { hold: セレクタ } { open: セレクタ } { close: セレクタ }
+  //       { type: [セレクタ, 文字列] } { set: [セレクタ, 文字列] } { add: [セレクタ, クラス] }
+  var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches
+  var BM_SHORT = "javascript:(function(){var s=docu…"
+
+  function Player(root, scenes) {
+    this.root = root
+    root.innerHTML =
+      '<div class="phone"><div class="screen"></div></div>' +
+      '<div class="caption"></div>' +
+      '<div class="controls"><button type="button" data-act="prev" aria-label="前へ">◀</button>' +
+      '<div class="dots"></div>' +
+      '<button type="button" data-act="toggle" aria-label="再生/一時停止">❚❚</button>' +
+      '<button type="button" data-act="next" aria-label="次へ">▶</button></div>'
+    this.screen = root.querySelector('.screen')
+    this.caption = root.querySelector('.caption')
+    this.dots = root.querySelector('.dots')
+    this.toggleBtn = root.querySelector('[data-act="toggle"]')
+    this.timers = []
+    this.playing = !reduceMotion
+    var self = this
+    root.querySelector('[data-act="prev"]').onclick = function () { self.go(self.index - 1) }
+    root.querySelector('[data-act="next"]').onclick = function () { self.go(self.index + 1) }
+    this.toggleBtn.onclick = function () {
+      self.playing = !self.playing
+      self.go(self.index)
+    }
+    this.load(scenes)
+  }
+
+  Player.prototype.load = function (scenes) {
+    this.scenes = scenes
+    var self = this
+    this.dots.innerHTML = ''
+    scenes.forEach(function (_, i) {
+      var d = document.createElement('span')
+      d.onclick = function () { self.go(i) }
+      self.dots.appendChild(d)
+    })
+    this.go(0)
+  }
+
+  Player.prototype.clear = function () {
+    this.timers.forEach(clearTimeout)
+    this.timers = []
+  }
+
+  Player.prototype.later = function (ms, fn) {
+    this.timers.push(setTimeout(fn, ms))
+  }
+
+  Player.prototype.go = function (i) {
+    var n = this.scenes.length
+    this.index = (i + n) % n
+    this.clear()
+    var scene = this.scenes[this.index]
+    this.toggleBtn.textContent = this.playing ? '❚❚' : '▶︎'
+    this.toggleBtn.setAttribute('aria-label', this.playing ? '一時停止' : '再生')
+    Array.prototype.forEach.call(this.dots.children, function (d, k) { d.className = k === this.index ? 'on' : '' }, this)
+    this.caption.innerHTML = '<span class="no">' + (this.index + 1) + '</span>' + scene.cap
+    this.screen.innerHTML = scene.html + '<div class="finger"></div>'
+    this.finger = this.screen.querySelector('.finger')
+
+    var self = this
+    var t = 500
+    if (!this.playing) {
+      // 一時停止中・動きを減らす設定のときは、場面の最終状態を静止画で見せる
+      scene.steps.forEach(function (st) { self.run(st[1], true) })
+      return
+    }
+    scene.steps.forEach(function (st) {
+      t += st[0]
+      self.later(t, function () { self.run(st[1], false) })
+    })
+    this.later(t + 1600, function () { self.go(self.index + 1) })
+  }
+
+  Player.prototype.$ = function (sel) {
+    return this.screen.querySelector(sel)
+  }
+
+  Player.prototype.moveFinger = function (sel) {
+    var el = this.$(sel)
+    if (!el) return
+    var s = this.screen.getBoundingClientRect()
+    var r = el.getBoundingClientRect()
+    this.finger.classList.add('show')
+    this.finger.style.left = r.left - s.left + r.width / 2 + 'px'
+    this.finger.style.top = r.top - s.top + r.height / 2 + 'px'
+  }
+
+  Player.prototype.run = function (a, instant) {
+    var self = this
+    if (a.tap || a.hold) {
+      if (instant) return
+      var cls = a.tap ? 'tap' : 'hold'
+      this.moveFinger(a.tap || a.hold)
+      this.later(650, function () {
+        self.finger.classList.remove('tap', 'hold')
+        void self.finger.offsetWidth
+        self.finger.classList.add(cls)
+      })
+    }
+    if (a.open) this.$(a.open).classList.add('open')
+    if (a.close) this.$(a.close).classList.remove('open')
+    if (a.add) this.$(a.add[0]).classList.add(a.add[1])
+    if (a.set) this.$(a.set[0]).textContent = a.set[1]
+    if (a.type) {
+      var el = this.$(a.type[0])
+      var text = a.type[1]
+      if (instant) {
+        el.textContent = text
+        return
+      }
+      el.textContent = ''
+      for (var k = 1; k <= text.length; k++) {
+        (function (k) {
+          self.later(k * 70, function () { el.textContent = text.slice(0, k) })
+        })(k)
+      }
+    }
+  }
+
+  // ---------- 画面の部品 ----------
+  var STATUS = '<div class="s-status"><span>10:00</span><span>▮▮▮ 🔋</span></div>'
+  function bar(url, right) {
+    return STATUS + '<div class="s-bar"><span class="s-icon">⌂</span><div class="s-url" id="url">' + url + '</div>' + (right || '<span class="s-icon" id="kebab">⋮</span>') + '</div>'
+  }
+  var THIS_PAGE = 'nhtkmr.github.io/fortune-ocr'
+  var TOOL_PAGE =
+    '<div class="s-page"><div class="s-h">シリアル読み取りツール</div>' +
+    '<p class="s-p">応募券を並べて撮影すると、シリアルナンバーを読み取って…</p>' +
+    '<div class="s-btn green">コピーする</div></div>'
+  function regPage(values) {
+    var rows = ''
+    for (var i = 0; i < 3; i++) {
+      rows += '<div class="s-input"><b>' + (i + 1) + '.</b><span id="in' + i + '">' + (values ? values[i] : '') + '</span></div>'
+    }
+    return (
+      '<div class="s-page"><div class="s-h">シリアルナンバー登録</div>' +
+      '<p class="s-p">シリアルナンバーは一度に10個まで登録できます。</p>' + rows +
+      '<div class="s-btn ol">＋ 入力枠を追加</div>' +
+      '<div class="s-btn ' + (values ? 'green' : 'gray') + '" id="reg">シリアルナンバー登録</div></div>'
+    )
+  }
+  var SERIALS = ['MMPRD76MQWS7H', 'R4WQ763KTQ67H', 'FZX7Q9Q4QLJ7H']
+  function panel(items, open) {
+    var list = items.map(function (v, i) {
+      return '<div class="it' + (i === 1 ? ' low' : '') + '" id="it' + i + '"><em style="width:1em">' + (i + 1) + '.</em><span>' + v + '</span><em>' + (i === 1 ? '要確認' : '') + '</em></div>'
+    }).join('')
+    return (
+      '<div class="s-panel' + (open ? ' open' : '') + '" id="panel"><div class="hd">シリアル読み取り</div><div class="bd">' +
+      '<div class="two"><div class="pb pri" id="cam">📷 撮影</div><div class="pb">🖼 写真を選択</div></div>' +
+      '<div class="st" id="st"></div>' + list +
+      '<div class="two"><div class="pb pri" id="fill">入力枠へ反映（' + items.length + '件）</div></div></div></div>'
+    )
+  }
+
+  // ---------- 登録手順: Android ----------
+  var ANDROID = [
+    {
+      cap: 'このページを開いて、右上の︙をタップ',
+      html: bar(THIS_PAGE) + TOOL_PAGE +
+        '<div class="s-menu" id="menu"><div class="icons"><span>→</span><span id="star">☆</span><span>⬇</span><span>ⓘ</span><span>↻</span></div>' +
+        '<div class="row">新しいタブ</div><div class="row">履歴</div><div class="row">ブックマーク</div></div>' +
+        '<div class="s-toast" id="toast">ブックマークしました</div>',
+      steps: [[0, { tap: '#kebab' }], [900, { open: '#menu' }], [600, { tap: '#star' }], [900, { close: '#menu' }], [100, { set: ['#star', '★'] }, ], [0, { open: '#toast' }]],
+    },
+    {
+      cap: 'もう一度︙ →「ブックマーク」を開く',
+      html: bar(THIS_PAGE) + TOOL_PAGE +
+        '<div class="s-menu" id="menu"><div class="icons"><span>→</span><span>★</span><span>⬇</span><span>ⓘ</span><span>↻</span></div>' +
+        '<div class="row">新しいタブ</div><div class="row">履歴</div><div class="row" id="bmrow">ブックマーク</div></div>',
+      steps: [[0, { tap: '#kebab' }], [900, { open: '#menu' }], [600, { tap: '#bmrow' }], [800, { add: ['#bmrow', 'pressed'] }]],
+    },
+    {
+      cap: '追加したブックマークを長押し →「編集」',
+      html: STATUS + '<div class="s-title">モバイルのブックマーク</div>' +
+        '<div class="s-list"><div class="row"><span class="fav" style="background:#9ab"></span>ニュース</div>' +
+        '<div class="row" id="item"><span class="fav"></span>シリアル読み取りツール</div></div>' +
+        '<div class="s-pop" id="pop" style="right:14px;top:120px"><div class="row" id="edit">編集</div><div class="row">移動</div><div class="row">削除</div></div>',
+      steps: [[0, { hold: '#item' }], [400, { add: ['#item', 'pressed'] }], [700, { open: '#pop' }], [500, { tap: '#edit' }]],
+    },
+    {
+      cap: '名前を「シリアル読取」、URLをコピーしたコードに変えて保存',
+      html: STATUS + '<div class="s-title">ブックマークの編集 <span class="act" id="save">✓</span></div>' +
+        '<div class="s-field"><label>名前</label><div id="name">シリアル読み取りツール</div></div>' +
+        '<div class="s-field"><label>URL</label><div id="u">https://' + THIS_PAGE + '/</div></div>',
+      steps: [[0, { tap: '#name' }], [700, { type: ['#name', 'シリアル読取'] }], [1100, { tap: '#u' }], [700, { set: ['#u', BM_SHORT] }], [1000, { tap: '#save' }]],
+    },
+  ]
+
+  // ---------- 登録手順: iPhone ----------
+  var IOS = [
+    {
+      cap: 'このページで共有ボタン →「ブックマークを追加」→ 保存',
+      html: STATUS + TOOL_PAGE +
+        '<div class="s-bar" style="position:absolute;left:0;right:0;bottom:0;border-top:1px solid #ddd;border-bottom:none;justify-content:space-around">' +
+        '<span class="s-icon">‹</span><span class="s-icon">›</span><span class="s-icon" id="share">⇪</span><span class="s-icon">📖</span><span class="s-icon">⧉</span></div>' +
+        '<div class="s-sheet" id="sheet"><div class="row">コピー</div><div class="row" id="addbm">ブックマークを追加</div><div class="row">お気に入りに追加</div></div>',
+      steps: [[0, { tap: '#share' }], [900, { open: '#sheet' }], [600, { tap: '#addbm' }]],
+    },
+    {
+      cap: 'ブックマーク一覧 →「編集」→ 追加したものをタップ',
+      html: STATUS + '<div class="s-title"><span class="act" id="editbtn">編集</span>ブックマーク<span class="act">完了</span></div>' +
+        '<div class="s-list"><div class="row"><span class="fav" style="background:#9ab"></span>お気に入り</div>' +
+        '<div class="row" id="item"><span class="fav"></span>シリアル読み取りツール</div></div>',
+      steps: [[0, { tap: '#editbtn' }], [900, { tap: '#item' }], [500, { add: ['#item', 'pressed'] }]],
+    },
+    {
+      cap: 'URLを全部消してコピーしたコードを貼り付け、名前も変えて完了',
+      html: STATUS + '<div class="s-title">ブックマークを編集 <span class="act" id="done">完了</span></div>' +
+        '<div class="s-field ios"><div id="name">シリアル読み取りツール</div></div>' +
+        '<div class="s-field ios"><div id="u">https://' + THIS_PAGE + '/</div></div>',
+      steps: [[0, { tap: '#name' }], [700, { type: ['#name', 'シリアル読取'] }], [1100, { tap: '#u' }], [700, { set: ['#u', BM_SHORT] }], [1000, { tap: '#done' }]],
+    },
+  ]
+
+  // ---------- 使い方 ----------
+  var USAGE = [
+    {
+      cap: '応募サイトにログインして「シリアルナンバー登録」ページを開く',
+      html: bar('ticket.fortunemeets.app/…/registration') + regPage(),
+      steps: [[0, {}]],
+    },
+    {
+      cap: 'アドレスバーに「シリアル読取」と入力して、★の候補をタップ<br><small>（iPhoneはブックマーク一覧からタップ）</small>',
+      html: bar('ticket.fortunemeets.app/…/registration') + regPage() +
+        '<div class="s-suggest" id="sug"><div class="row" id="cand">★ シリアル読取<small style="color:#888;margin-left:auto">javascript:…</small></div><div class="row" style="color:#888">🔍 シリアル読取</div></div>',
+      steps: [[0, { tap: '#url' }], [700, { type: ['#url', 'シリアル読取'] }], [900, { open: '#sug' }], [500, { tap: '#cand' }]],
+    },
+    {
+      cap: '画面下にパネルが出たら「📷 撮影」',
+      html: bar('ticket.fortunemeets.app/…/registration') + regPage() + panel([], false),
+      steps: [[0, { open: '#panel' }], [900, { tap: '#cam' }]],
+    },
+    {
+      cap: '応募券をずらして重ね、シリアルが全部写るように撮る',
+      html: bar('ticket.fortunemeets.app/…/registration') + regPage() + panel([], true) +
+        '<div class="s-cam open" id="camv"><div class="view">' +
+        SERIALS.map(function (v, i) { return '<div class="card" style="top:' + (14 + i * 27) + '%">' + v + '</div>' }).join('') +
+        '</div><div class="shutter" id="shutter"></div><div class="flash" id="flash"></div></div>',
+      steps: [[300, { tap: '#shutter' }], [650, { add: ['#flash', 'go'] }]],
+    },
+    {
+      cap: '読み取り結果を券と見比べて確認（黄色は要確認）',
+      html: bar('ticket.fortunemeets.app/…/registration') + regPage() + panel(SERIALS, true),
+      steps: [[0, { set: ['#st', '読み取り中…'] }], [1200, { set: ['#st', '3件読み取りました。'] }], [0, { add: ['#it0', 'show'] }], [250, { add: ['#it1', 'show'] }], [250, { add: ['#it2', 'show'] }]],
+    },
+    {
+      cap: '「入力枠へ反映」で登録ページに入力される',
+      html: bar('ticket.fortunemeets.app/…/registration') + regPage() + panel(SERIALS, true).replace(/class="it/g, 'class="it show'),
+      steps: [[0, { tap: '#fill' }], [800, { close: '#panel' }], [400, { set: ['#in0', SERIALS[0]] }], [0, { add: ['#in0', 'filled'] }], [250, { set: ['#in1', SERIALS[1]] }], [0, { add: ['#in1', 'filled'] }], [250, { set: ['#in2', SERIALS[2]] }], [0, { add: ['#in2', 'filled'] }], [0, { add: ['#reg', 'green'] }]],
+    },
+    {
+      cap: '内容を確認して、自分で「シリアルナンバー登録」を押す',
+      html: bar('ticket.fortunemeets.app/…/registration') + regPage(SERIALS).replace(/<span id/g, '<span class="filled" id'),
+      steps: [[0, { tap: '#reg' }]],
+    },
+  ]
+
+  var setupPlayer = new Player(document.getElementById('setup-player'), ANDROID)
+  new Player(document.getElementById('usage-player'), USAGE)
+
+  Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function (b) {
+    b.addEventListener('click', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('.tabs button'), function (x) {
+        x.setAttribute('aria-selected', x === b ? 'true' : 'false')
+      })
+      setupPlayer.load(b.dataset.os === 'ios' ? IOS : ANDROID)
+    })
   })
 </script>
 </body>
