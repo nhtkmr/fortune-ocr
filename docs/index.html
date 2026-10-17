@@ -332,7 +332,7 @@
   var TOOL_PAGE =
     '<div class="s-page"><div class="s-h">シリアル読み取りツール</div>' +
     '<p class="s-p">応募券を並べて撮影すると、シリアルナンバーを読み取って…</p>' +
-    '<div class="s-btn green">コピーする</div></div>'
+    '<div class="s-btn green" id="copybtn">コピーする</div></div>'
   function regPage(values) {
     var rows = ''
     for (var i = 0; i < 3; i++) {
@@ -359,7 +359,17 @@
   }
 
   // ---------- 登録手順: Android ----------
+  // 両OS共通の最初の場面
+  var COPY_SCENE = function (withBar) {
+    return {
+      cap: 'このページの「コピーする」を押してコードをコピー',
+      html: (withBar ? bar(THIS_PAGE) : STATUS) + TOOL_PAGE,
+      steps: [[0, { tap: '#copybtn' }], [800, { set: ['#copybtn', 'コピーしました'] }]],
+    }
+  }
+
   var ANDROID = [
+    COPY_SCENE(true),
     {
       cap: 'このページを開いて、右上の︙をタップ',
       html: bar(THIS_PAGE) + TOOL_PAGE +
@@ -394,6 +404,7 @@
 
   // ---------- 登録手順: iPhone ----------
   var IOS = [
+    COPY_SCENE(false),
     {
       cap: 'このページで共有ボタン →「ブックマークを追加」→ 保存',
       html: STATUS + TOOL_PAGE +
