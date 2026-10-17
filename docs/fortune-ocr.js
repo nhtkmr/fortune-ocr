@@ -5,7 +5,7 @@
   'use strict'
 
   // 不具合報告時にスマホが最新版を読み込んでいるか確認するため、パネルにも表示する
-  var VERSION = '2026-10-18d'
+  var VERSION = '2026-10-18e'
 
   // 同じタブで再実行されたとき、同じ版なら既存パネルを出すだけ。古い版なら差し替える
   if (window.__fortuneOcr) {
@@ -77,8 +77,6 @@
     '#fo-status{font-size:13px;color:#555;margin:4px 0 8px;min-height:1.4em;white-space:pre-wrap}' +
     '#fo-status.fo-err{color:#d00}' +
     '#fo-head small{font-size:11px;color:#999;font-weight:normal}' +
-    '#fo-debug{font-size:12px;color:#555;margin:0 0 8px}' +
-    '#fo-debug pre{white-space:pre-wrap;word-break:break-all;margin:4px 0 0;font:12px/1.4 Menlo,Consolas,monospace}' +
     '#fo-list{list-style:none;margin:0 0 8px;padding:0}' +
     '#fo-list li{display:flex;align-items:center;gap:6px;margin-bottom:6px}' +
     '#fo-list .fo-no{width:1.8em;text-align:right;font-size:13px;color:#888}' +
@@ -106,7 +104,6 @@
     '<button class="fo-btn" id="fo-pick" type="button">🖼 写真を選択</button>' +
     '</div>' +
     '<div id="fo-status"></div>' +
-    '<details id="fo-debug" hidden><summary>読み取った文字をすべて表示</summary><pre></pre></details>' +
     '<ul id="fo-list"></ul>' +
     '<div class="fo-row">' +
     '<button class="fo-btn" id="fo-add" type="button">＋ 手入力</button>' +
@@ -218,8 +215,6 @@
 
   // OCR ライブラリは画像をフル解像度のまま検出モデルに入れるため、スマホのカメラ写真
   // (12MP〜) だとメモリ不足で落ちる。長辺 MAX_IMAGE_SIDE px に縮小した JPEG の URL を返す。
-  var lastImageSize = null
-
   function downscale(file) {
     return new Promise(function (resolve, reject) {
       var srcUrl = URL.createObjectURL(file)
@@ -230,7 +225,6 @@
         var canvas = document.createElement('canvas')
         canvas.width = Math.round(img.naturalWidth * scale)
         canvas.height = Math.round(img.naturalHeight * scale)
-        lastImageSize = img.naturalWidth + 'x' + img.naturalHeight + '→' + canvas.width + 'x' + canvas.height
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
         canvas.toBlob(
           function (blob) {
@@ -268,7 +262,6 @@
     var added = 0
     var dup = 0
     var wrongLength = 0
-    var debugLines = []
     loadEngine()
       .then(function (engine) {
         return files.reduce(function (p, file, idx) {
@@ -283,12 +276,6 @@
               .then(
                 function (texts) {
                   URL.revokeObjectURL(url)
-                  debugLines.push(
-                    '[' + file.name + '] ' + (lastImageSize || '') + ' ' + texts.length + '行',
-                  )
-                  texts.forEach(function (t) {
-                    debugLines.push('  ' + t.text + ' (' + (t.mean != null ? t.mean.toFixed(2) : '-') + ')')
-                  })
                   extractSerials(texts).forEach(function (f) {
                     var exists = serials.some(function (s) {
                       return s.value === f.value
@@ -313,8 +300,6 @@
         }, Promise.resolve())
       })
       .then(function () {
-        $('fo-debug').hidden = false
-        $('fo-debug').querySelector('pre').textContent = debugLines.join('\n')
         var msg = added + '件読み取りました。'
         if (dup) msg += '（重複' + dup + '件は除外）'
         if (!added && !dup) msg = 'シリアルが見つかりませんでした。明るい場所で、文字が大きく写るように撮り直してください。'
